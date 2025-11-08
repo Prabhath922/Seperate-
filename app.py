@@ -40,6 +40,22 @@ preprocess = transforms.Compose(
     ]
 )
 
+# Mapping from waste types to bin names
+WASTE_TO_BIN = {
+    "cardboard": "paper",
+    "glass": "trash",
+    "metal": "trash",
+    "organic": "organic",
+    "paper": "paper",
+    "plastic": "plastic",
+    "trash": "trash",
+}
+
+
+def get_bin_name(waste_type: str) -> str:
+    """Map waste type to bin name."""
+    return WASTE_TO_BIN.get(waste_type.lower(), "trash")
+
 
 def prepare_image(file_stream: io.BytesIO | bytes) -> torch.Tensor:
     if isinstance(file_stream, bytes):
@@ -57,8 +73,9 @@ def classify_image_bytes(image_bytes: bytes) -> Dict[str, Any]:
         probabilities = torch.softmax(outputs, dim=1)[0]
     top_idx = int(torch.argmax(probabilities).item())
     prediction = CLASS_NAMES[top_idx]
+    bin_name = get_bin_name(prediction)
     confidence = float(probabilities[top_idx].item())
-    return {"prediction": prediction, "confidence": confidence}
+    return {"prediction": prediction, "bin": bin_name, "confidence": confidence}
 
 
 app = Flask(__name__)
@@ -67,6 +84,7 @@ app = Flask(__name__)
 @app.route("/", methods=["GET", "POST"])
 def index():
     prediction = None
+    bin_name = None
     confidence = None
 
     if request.method == "POST" and "image" in request.files:
@@ -75,12 +93,14 @@ def index():
             try:
                 result = classify_image_bytes(file.read())
                 prediction = result["prediction"]
+                bin_name = result["bin"]
                 confidence = result["confidence"]
             except Exception as exc:  # pylint: disable=broad-except
                 prediction = f"Error: {exc}"
+                bin_name = None
                 confidence = None
 
-    return render_template("index.html", prediction=prediction, confidence=confidence)
+    return render_template("index.html", prediction=prediction, bin=bin_name, confidence=confidence)
 
 
 @app.route("/classify", methods=["POST"])
@@ -101,5 +121,5 @@ def classify():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5001)
 

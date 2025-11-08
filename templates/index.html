@@ -56,6 +56,16 @@
         <div class="relative rounded-lg overflow-hidden bg-gray-100 aspect-video">
           <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
           <canvas id="canvas" class="hidden"></canvas>
+          <canvas id="backgroundCanvas" class="hidden"></canvas>
+          <canvas id="processedCanvas" class="hidden"></canvas>
+          <div class="absolute top-2 right-2">
+            <div id="backgroundStatus" class="bg-yellow-100 border border-yellow-400 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium hidden">
+              Background Not Set
+            </div>
+            <div id="backgroundSet" class="bg-green-100 border border-green-400 text-green-800 px-3 py-1 rounded-full text-xs font-medium hidden">
+              Background Set
+            </div>
+          </div>
           <div class="absolute inset-0 flex items-center justify-center" id="cameraPlaceholder">
             <div class="text-center p-6 bg-white bg-opacity-80 rounded-lg">
               <i data-feather="camera" class="w-12 h-12 mx-auto text-gray-400 mb-3"></i>
@@ -89,6 +99,10 @@
         </div>
 
         <div class="mt-6 flex flex-wrap justify-center gap-3">
+          <button type="button" id="captureBackgroundBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <i data-feather="image" class="w-4 h-4 mr-2"></i>
+            Set Background
+          </button>
           <button type="button" id="captureBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
             <i data-feather="camera" class="w-4 h-4 mr-2"></i>
             Capture & Classify
@@ -97,7 +111,7 @@
             <i data-feather="video-off" class="w-4 h-4 mr-2"></i>
             Stop Camera
           </button>
-      </div>
+        </div>
     </div>
 
     <!-- File Upload Section -->
@@ -133,10 +147,10 @@
 
     <!-- Results Section -->
     <div id="uploadResult" class="mt-8">
-        {% if prediction %}
+        {% if bin %}
         <div class="bg-white shadow rounded-lg overflow-hidden">
           <div class="px-6 py-5 border-b border-gray-200">
-            <h3 class="text-lg font-medium leading-6 text-gray-900">Classification Result</h3>
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Bin Classification</h3>
           </div>
           <div class="px-6 py-5 space-y-5">
             <div class="flex items-center">
@@ -144,7 +158,7 @@
                 <i data-feather="check-circle" class="w-6 h-6 text-primary-600"></i>
               </div>
               <div class="ml-4">
-                <h4 class="text-lg font-medium text-gray-900">{{ prediction }}</h4>
+                <h4 class="text-2xl font-bold text-gray-900 capitalize">{{ bin }}</h4>
                 {% if confidence %}
                 <div class="mt-1">
                   <p class="text-sm text-gray-500">
@@ -160,9 +174,9 @@
                   <i data-feather="trash-2" class="w-6 h-6 text-secondary-600"></i>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-md font-medium text-gray-900">Suggested Disposal</h4>
+                  <h4 class="text-md font-medium text-gray-900">Disposal Instructions</h4>
                   <p class="mt-1 text-sm text-gray-600">
-                    Place this item in the <span class="font-semibold text-secondary-600">{{ prediction|title }}</span> bin for proper recycling or disposal.
+                    Place this item in the <span class="font-semibold text-secondary-600 capitalize">{{ bin }}</span> bin.
                   </p>
                 </div>
               </div>
@@ -238,9 +252,14 @@
       const toggleCameraBtn = document.getElementById('toggleCamera');
       const toggleCameraText = toggleCameraBtn ? toggleCameraBtn.querySelector('span') : null;
       const captureBtn = document.getElementById('captureBtn');
+      const captureBackgroundBtn = document.getElementById('captureBackgroundBtn');
       const stopCameraBtn = document.getElementById('stopCamera');
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
+      const backgroundCanvas = document.getElementById('backgroundCanvas');
+      const processedCanvas = document.getElementById('processedCanvas');
+      const backgroundStatus = document.getElementById('backgroundStatus');
+      const backgroundSet = document.getElementById('backgroundSet');
       const liveResult = document.getElementById('liveResult');
       const liveLabel = document.getElementById('liveLabel');
       const liveConfidence = document.getElementById('liveConfidence');
@@ -254,6 +273,8 @@
       let stream = null;
       let classificationTimer = null;
       let isClassifying = false;
+      let backgroundImageData = null;
+      let useBackgroundRemoval = false;
 
       function replaceIcons() {
         if (window.feather) {
@@ -279,7 +300,7 @@
         replaceIcons();
       }
 
-      function updateUploadResult(prediction, confidence, errorMessage) {
+      function updateUploadResult(prediction, confidence, errorMessage, binName) {
         if (!uploadResult) {
           return;
         }
@@ -301,7 +322,7 @@
           return;
         }
 
-        if (!prediction) {
+        if (!prediction && !binName) {
           uploadResult.innerHTML = '';
           return;
         }
@@ -311,10 +332,11 @@
             ? `<div class="mt-1"><p class="text-sm text-gray-500">Confidence: <span class="font-medium">${(confidence * 100).toFixed(1)}%</span></p></div>`
             : '';
 
+        const bin = binName || prediction || 'Unknown';
         uploadResult.innerHTML = `
           <div class="bg-white shadow rounded-lg overflow-hidden">
             <div class="px-6 py-5 border-b border-gray-200">
-              <h3 class="text-lg font-medium leading-6 text-gray-900">Classification Result</h3>
+              <h3 class="text-lg font-medium leading-6 text-gray-900">Bin Classification</h3>
             </div>
             <div class="px-6 py-5 space-y-5">
               <div class="flex items-center">
@@ -322,7 +344,7 @@
                   <i data-feather="check-circle" class="w-6 h-6 text-primary-600"></i>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">${prediction}</h4>
+                  <h4 class="text-2xl font-bold text-gray-900 capitalize">${bin}</h4>
                   ${confidenceHtml}
                 </div>
               </div>
@@ -332,9 +354,9 @@
                     <i data-feather="trash-2" class="w-6 h-6 text-secondary-600"></i>
                   </div>
                   <div class="ml-4">
-                    <h4 class="text-md font-medium text-gray-900">Suggested Disposal</h4>
+                    <h4 class="text-md font-medium text-gray-900">Disposal Instructions</h4>
                     <p class="mt-1 text-sm text-gray-600">
-                      Place this item in the <span class="font-semibold text-secondary-600">${prediction}</span> bin for proper recycling or disposal.
+                      Place this item in the <span class="font-semibold text-secondary-600 capitalize">${bin}</span> bin.
                     </p>
                   </div>
                 </div>
@@ -392,6 +414,73 @@
         }
       }
 
+      function captureBackground() {
+        if (!video || !backgroundCanvas || video.videoWidth === 0 || video.videoHeight === 0) {
+          alert('Please wait for the camera to start before capturing background.');
+          return;
+        }
+
+        backgroundCanvas.width = video.videoWidth;
+        backgroundCanvas.height = video.videoHeight;
+        const bgContext = backgroundCanvas.getContext('2d');
+        bgContext.drawImage(video, 0, 0, backgroundCanvas.width, backgroundCanvas.height);
+        backgroundImageData = bgContext.getImageData(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+        useBackgroundRemoval = true;
+
+        // Update UI
+        if (backgroundStatus) {
+          backgroundStatus.classList.add('hidden');
+        }
+        if (backgroundSet) {
+          backgroundSet.classList.remove('hidden');
+        }
+      }
+
+      function removeBackground(sourceCanvas, targetCanvas) {
+        if (!useBackgroundRemoval || !backgroundImageData || !sourceCanvas || !targetCanvas) {
+          return false;
+        }
+
+        const sourceCtx = sourceCanvas.getContext('2d');
+        const targetCtx = targetCanvas.getContext('2d');
+        const sourceImageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+        const targetImageData = targetCtx.createImageData(sourceCanvas.width, sourceCanvas.height);
+        const bgData = backgroundImageData.data;
+        const srcData = sourceImageData.data;
+        const dstData = targetImageData.data;
+
+        // Threshold for background subtraction (adjustable)
+        const threshold = 30;
+        let hasForeground = false;
+
+        for (let i = 0; i < srcData.length; i += 4) {
+          const rDiff = Math.abs(srcData[i] - bgData[i]);
+          const gDiff = Math.abs(srcData[i + 1] - bgData[i + 1]);
+          const bDiff = Math.abs(srcData[i + 2] - bgData[i + 2]);
+          const diff = (rDiff + gDiff + bDiff) / 3;
+
+          if (diff > threshold) {
+            // Foreground pixel - keep it
+            dstData[i] = srcData[i];
+            dstData[i + 1] = srcData[i + 1];
+            dstData[i + 2] = srcData[i + 2];
+            dstData[i + 3] = 255;
+            hasForeground = true;
+          } else {
+            // Background pixel - make it white/transparent
+            dstData[i] = 255;
+            dstData[i + 1] = 255;
+            dstData[i + 2] = 255;
+            dstData[i + 3] = 255;
+          }
+        }
+
+        targetCanvas.width = sourceCanvas.width;
+        targetCanvas.height = sourceCanvas.height;
+        targetCtx.putImageData(targetImageData, 0, 0);
+        return hasForeground;
+      }
+
       function stopLiveClassification() {
         if (classificationTimer) {
           clearInterval(classificationTimer);
@@ -410,6 +499,15 @@
         }
         stopLiveClassification();
         clearLiveDisplays();
+        // Reset background removal
+        backgroundImageData = null;
+        useBackgroundRemoval = false;
+        if (backgroundStatus) {
+          backgroundStatus.classList.remove('hidden');
+        }
+        if (backgroundSet) {
+          backgroundSet.classList.add('hidden');
+        }
       }
 
       function showCameraSection() {
@@ -464,6 +562,13 @@
           }
           if (cameraPlaceholder) {
             cameraPlaceholder.classList.add('hidden');
+          }
+          // Show background status
+          if (backgroundStatus && !useBackgroundRemoval) {
+            backgroundStatus.classList.remove('hidden');
+          }
+          if (backgroundSet) {
+            backgroundSet.classList.add('hidden');
           }
           startLiveClassification();
         } catch (error) {
@@ -526,8 +631,17 @@
         const context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
+        // Apply background removal if enabled
+        let imageCanvas = canvas;
+        if (useBackgroundRemoval && processedCanvas) {
+          const hasForeground = removeBackground(canvas, processedCanvas);
+          if (hasForeground) {
+            imageCanvas = processedCanvas;
+          }
+        }
+        
         isClassifying = true;
-        canvas.toBlob(
+        imageCanvas.toBlob(
           (blob) => {
             if (!blob) {
               isClassifying = false;
@@ -538,9 +652,9 @@
 
             sendClassification(formData, {
               onSuccess: (data) => {
-                updateLiveResult(data.prediction, data.confidence);
+                updateLiveResult(data.bin || data.prediction, data.confidence);
                 if (updateUploadCard) {
-                  updateUploadResult(data.prediction, data.confidence);
+                  updateUploadResult(data.prediction, data.confidence, null, data.bin);
                 }
               },
               onError: (message) => {
@@ -569,6 +683,10 @@
         });
       }
 
+      if (captureBackgroundBtn) {
+        captureBackgroundBtn.addEventListener('click', captureBackground);
+      }
+
       if (captureBtn) {
         captureBtn.addEventListener('click', () => classifyFrame(true));
       }
@@ -590,7 +708,7 @@
           setButtonLoading(true);
           sendClassification(formData, {
             onSuccess: (data) => {
-              updateUploadResult(data.prediction, data.confidence);
+              updateUploadResult(data.prediction, data.confidence, null, data.bin);
             },
             onError: (message) => {
               updateUploadResult(null, null, message);
