@@ -132,7 +132,7 @@ def main():
     parser.add_argument(
         "--dataset",
         type=Path,
-        default=Path("/Users/prabhathsundarapalli/Downloads/dataset-resized"),
+        default=Path("/Users/prabhathsundarapalli/Downloads/dataset-resized 2"),
         help="Path to the dataset directory that contains class subfolders.",
     )
     parser.add_argument("--img-size", type=int, default=224, help="Image size to resize the dataset to.")

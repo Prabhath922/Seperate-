@@ -7,7 +7,7 @@
       body {
         font-family: Arial, sans-serif;
         margin: 2rem auto;
-        max-width: 480px;
+        max-width: 600px;
         text-align: center;
       }
 
@@ -30,21 +30,76 @@
         padding: 0.6rem 1.4rem;
         border-radius: 6px;
         cursor: pointer;
+        margin: 0.3rem;
+      }
+
+      #cameraSection {
+        margin: 2rem 0;
+      }
+
+      #video {
+        width: 100%;
+        max-width: 480px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+
+      #canvas {
+        display: none;
       }
 
       .result {
         margin-top: 1.5rem;
+        padding: 1rem;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+      }
+
+      .camera-buttons {
+        margin: 1rem 0;
+      }
+
+      .switch-mode {
+        margin-top: 1rem;
+      }
+
+      #toggleCamera {
+        background-color: #6b7280;
+      }
+
+      #captureBtn {
+        background-color: #059669;
+      }
+
+      #stopCamera {
+        background-color: #dc2626;
       }
     </style>
   </head>
   <body>
     <h1>Waste Image Classifier</h1>
-    <p>Select an image of cardboard, glass, metal, paper, plastic, or trash to classify it.</p>
+    <p>Select an image or use your camera to classify cardboard, glass, metal, paper, plastic, or trash.</p>
 
-    <form method="post" enctype="multipart/form-data">
+    <!-- Camera Section -->
+    <div id="cameraSection" style="display: none;">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+      <div class="camera-buttons">
+        <button id="captureBtn">Capture & Classify</button>
+        <button id="stopCamera">Stop Camera</button>
+      </div>
+    </div>
+
+    <!-- File Upload Section -->
+    <form method="post" enctype="multipart/form-data" id="uploadForm">
       <input type="file" name="image" accept="image/*" required />
-      <button type="submit">Classify</button>
+      <button type="submit">Classify Uploaded Image</button>
     </form>
+
+    <!-- Switch between modes -->
+    <div class="switch-mode">
+      <button id="toggleCamera">Use Camera Instead</button>
+    </div>
 
     {% if prediction %}
     <div class="result">
@@ -56,6 +111,111 @@
       {% endif %}
     </div>
     {% endif %}
+
+    <script>
+      // DOM Elements
+      const cameraSection = document.getElementById('cameraSection');
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const captureBtn = document.getElementById('captureBtn');
+      const stopCamera = document.getElementById('stopCamera');
+      const toggleCamera = document.getElementById('toggleCamera');
+      const uploadForm = document.getElementById('uploadForm');
+
+      let stream = null;
+
+      // Toggle between camera and file upload
+      toggleCamera.addEventListener('click', function() {
+        if (cameraSection.style.display === 'none') {
+          // Show camera section
+          cameraSection.style.display = 'block';
+          uploadForm.style.display = 'none';
+          toggleCamera.textContent = 'Use File Upload Instead';
+          startCamera();
+        } else {
+          // Show file upload section
+          cameraSection.style.display = 'none';
+          uploadForm.style.display = 'block';
+          toggleCamera.textContent = 'Use Camera Instead';
+          stopCameraStream();
+        }
+      });
+
+      // Start camera
+      async function startCamera() {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              facingMode: 'environment', // Prefer rear camera
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            } 
+          });
+          video.srcObject = stream;
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          alert("Unable to access camera. Please check permissions and try again.");
+          // Fall back to file upload
+          cameraSection.style.display = 'none';
+          uploadForm.style.display = 'block';
+          toggleCamera.textContent = 'Use Camera Instead';
+        }
+      }
+
+      // Stop camera
+      function stopCameraStream() {
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          stream = null;
+        }
+      }
+
+      // Capture image and submit for classification
+      captureBtn.addEventListener('click', function() {
+        if (!stream) return;
+
+        // Set canvas dimensions to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw current video frame to canvas
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert canvas to blob and submit
+        canvas.toBlob(function(blob) {
+          const formData = new FormData();
+          formData.append('image', blob, 'capture.jpg');
+          
+          // Submit to server
+          fetch('/', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.text())
+          .then(html => {
+            // Replace the entire page with the response
+            document.documentElement.innerHTML = html;
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('Error classifying image. Please try again.');
+          });
+        }, 'image/jpeg');
+      });
+
+      // Stop camera button
+      stopCamera.addEventListener('click', function() {
+        stopCameraStream();
+        cameraSection.style.display = 'none';
+        uploadForm.style.display = 'block';
+        toggleCamera.textContent = 'Use Camera Instead';
+      });
+
+      // Clean up when leaving page
+      window.addEventListener('beforeunload', function() {
+        stopCameraStream();
+      });
+    </script>
   </body>
 </html>
-

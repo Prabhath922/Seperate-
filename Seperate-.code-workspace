@@ -1,10 +1,23 @@
 {
 	"folders": [
 		{
+			"name": "Seperate-",
 			"path": "."
 		},
 		{
+			"name": "dataset-resized",
 			"path": "../../Downloads/dataset-resized"
+		},
+		{
+			"name": "organic",
+			"path": "../../Downloads/dataset-resized 2/organic"
+		},
+		{
+			"name": "YOLO-Waste-Detection-1",
+			"path": "../../Downloads/archive-2/YOLO-Waste-Detection-1"
+		},
+		{
+			"path": "../../Downloads/dataset-resized 2"
 		}
 	],
 	"settings": {}
