@@ -1,190 +1,303 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="h-full">
   <head>
     <meta charset="utf-8" />
-    <title>Waste Classifier</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 2rem auto;
-        max-width: 600px;
-        text-align: center;
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoVision | Waste Classifier</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              500: '#10B981',
+              600: '#059669',
+            },
+            secondary: {
+              500: '#3B82F6',
+              600: '#2563EB',
+            }
+          }
+        }
       }
-
-      form {
-        margin-top: 2rem;
-        border: 1px solid #ddd;
-        padding: 1.5rem;
-        border-radius: 8px;
-      }
-
-      input[type="file"] {
-        width: 100%;
-        margin-bottom: 1rem;
-      }
-
-      button {
-        background-color: #2563eb;
-        color: white;
-        border: none;
-        padding: 0.6rem 1.4rem;
-        border-radius: 6px;
-        cursor: pointer;
-        margin: 0.3rem;
-      }
-
-      #cameraSection {
-        margin: 2rem 0;
-      }
-
-      #video {
-        width: 100%;
-        max-width: 480px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-      }
-
-      #canvas {
-        display: none;
-      }
-
-      .result {
-        margin-top: 1.5rem;
-        padding: 1rem;
-        border-radius: 8px;
-        background-color: #f8f9fa;
-      }
-
-      .camera-buttons {
-        margin: 1rem 0;
-      }
-
-      .switch-mode {
-        margin-top: 1rem;
-      }
-
-      #toggleCamera {
-        background-color: #6b7280;
-      }
-
-      #captureBtn {
-        background-color: #059669;
-      }
-
-      #stopCamera {
-        background-color: #dc2626;
-      }
-    </style>
+    }
+  </script>
   </head>
-  <body>
-    <h1>Waste Image Classifier</h1>
-    <p>Select an image or use your camera to classify cardboard, glass, metal, paper, plastic, or trash.</p>
-
-    <!-- Camera Section -->
-    <div id="cameraSection" style="display: none;">
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
-      <div id="liveResult" class="result" style="display: none;">
-        <p><strong>Live Prediction:</strong> <span id="liveLabel">--</span></p>
-        <p><strong>Confidence:</strong> <span id="liveConfidence">--</span></p>
+<body class="min-h-screen bg-gray-50 flex flex-col">
+  <header class="bg-white shadow-sm">
+    <div class="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between">
+      <div class="flex items-center">
+        <i data-feather="trash-2" class="text-primary-500 w-8 h-8 mr-3"></i>
+        <h1 class="text-2xl font-bold text-gray-900">EcoVision</h1>
       </div>
-      <div id="liveError" class="result" style="display: none;"></div>
-      <div class="camera-buttons">
-        <button id="captureBtn">Capture & Classify</button>
-        <button id="stopCamera">Stop Camera</button>
+      <div class="flex items-center space-x-4">
+        <a href="#" class="text-sm font-medium text-gray-500 hover:text-gray-700">About</a>
+        <a href="#" class="text-sm font-medium text-gray-500 hover:text-gray-700">Guide</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div class="text-center mb-10">
+      <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+        Waste Classification Made Simple
+      </h2>
+      <p class="mt-3 max-w-2xl mx-auto text-xl text-gray-500 sm:mt-4">
+        Upload an image or use your camera to classify waste materials instantly.
+      </p>
+    </div>
+
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+      <!-- Camera Section -->
+      <div id="cameraSection" class="hidden p-6">
+        <div class="relative rounded-lg overflow-hidden bg-gray-100 aspect-video">
+          <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+          <canvas id="canvas" class="hidden"></canvas>
+          <div class="absolute inset-0 flex items-center justify-center" id="cameraPlaceholder">
+            <div class="text-center p-6 bg-white bg-opacity-80 rounded-lg">
+              <i data-feather="camera" class="w-12 h-12 mx-auto text-gray-400 mb-3"></i>
+              <p class="text-gray-600">Camera feed will appear here</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="liveResult" class="mt-4 hidden">
+          <div class="bg-primary-50 border border-primary-100 rounded-lg p-4">
+            <h3 class="text-sm font-medium text-primary-800">Live Prediction</h3>
+            <div class="mt-2 flex items-center">
+              <div class="flex-shrink-0 bg-primary-100 rounded-full p-2">
+                <i data-feather="eye" class="w-5 h-5 text-primary-600"></i>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm font-medium text-gray-900">
+                  <span id="liveLabel">--</span>
+                  <span class="text-primary-600 ml-2" id="liveConfidence">--</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="liveError" class="mt-4 hidden">
+          <div class="bg-red-50 border border-red-100 rounded-lg p-4">
+            <h3 class="text-sm font-medium text-red-800">Error</h3>
+            <p class="mt-1 text-sm text-red-700"></p>
+          </div>
+        </div>
+
+        <div class="mt-6 flex flex-wrap justify-center gap-3">
+          <button type="button" id="captureBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            <i data-feather="camera" class="w-4 h-4 mr-2"></i>
+            Capture & Classify
+          </button>
+          <button type="button" id="stopCamera" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary-500">
+            <i data-feather="video-off" class="w-4 h-4 mr-2"></i>
+            Stop Camera
+          </button>
       </div>
     </div>
 
     <!-- File Upload Section -->
-    <form method="post" enctype="multipart/form-data" id="uploadForm">
-      <input type="file" name="image" accept="image/*" required />
-      <button type="submit">Classify Uploaded Image</button>
+      <form id="uploadForm" class="p-6" method="post" enctype="multipart/form-data">
+        <div class="space-y-6">
+          <div class="border-2 border-dashed border-gray-300 rounded-lg px-6 py-10 text-center">
+            <i data-feather="upload" class="mx-auto h-12 w-12 text-gray-400"></i>
+            <div class="mt-4 flex text-sm text-gray-600">
+              <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-secondary-600 hover:text-secondary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-secondary-500">
+                <span>Upload a file</span>
+                <input id="file-upload" name="image" type="file" class="sr-only" accept="image/*" required>
+              </label>
+              <p class="pl-1">or drag and drop</p>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">PNG, JPG, GIF up to 10MB</p>
+          </div>
+
+          <button type="submit" class="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-secondary-600 hover:bg-secondary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary-500">
+            <i data-feather="search" class="w-5 h-5 mr-2"></i>
+            Classify Uploaded Image
+          </button>
+        </div>
     </form>
 
-    <!-- Switch between modes -->
-    <div class="switch-mode">
-      <button id="toggleCamera">Use Camera Instead</button>
+      <!-- Mode Toggle -->
+      <div class="border-t border-gray-200 px-6 py-4 bg-gray-50">
+        <button type="button" id="toggleCamera" class="w-full flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+          <i data-feather="camera" class="w-4 h-4 mr-2"></i>
+          <span>Use Camera Instead</span>
+        </button>
+      </div>
     </div>
 
-    <div id="uploadResult">
-      {% if prediction %}
-      <div class="result">
-        {% if confidence %}
-        <p><strong>Prediction:</strong> {{ prediction }}</p>
-        <p><strong>Confidence:</strong> {{ "%.1f"|format(confidence * 100) }}%</p>
-        {% else %}
-        <p>{{ prediction }}</p>
+    <!-- Results Section -->
+    <div id="uploadResult" class="mt-8">
+        {% if prediction %}
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <div class="px-6 py-5 border-b border-gray-200">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Classification Result</h3>
+          </div>
+          <div class="px-6 py-5 space-y-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0 bg-primary-100 rounded-full p-3">
+                <i data-feather="check-circle" class="w-6 h-6 text-primary-600"></i>
+              </div>
+              <div class="ml-4">
+                <h4 class="text-lg font-medium text-gray-900">{{ prediction }}</h4>
+                {% if confidence %}
+                <div class="mt-1">
+                  <p class="text-sm text-gray-500">
+                    Confidence: <span class="font-medium">{{ "%.1f"|format(confidence * 100) }}%</span>
+                  </p>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="border-t pt-4">
+              <div class="flex items-start">
+                <div class="flex-shrink-0 bg-secondary-100 rounded-full p-3">
+                  <i data-feather="trash-2" class="w-6 h-6 text-secondary-600"></i>
+                </div>
+                <div class="ml-4">
+                  <h4 class="text-md font-medium text-gray-900">Suggested Disposal</h4>
+                  <p class="mt-1 text-sm text-gray-600">
+                    Place this item in the <span class="font-semibold text-secondary-600">{{ prediction|title }}</span> bin for proper recycling or disposal.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         {% endif %}
-      </div>
-      {% endif %}
     </div>
+
+    <!-- Waste Categories Info -->
+    <div class="mt-12">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Supported Waste Categories</h3>
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 text-green-600">
+            <i data-feather="box"></i>
+          </div>
+          <h4 class="mt-2 text-sm font-medium text-gray-900">Cardboard</h4>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 text-blue-600">
+            <i data-feather="droplet"></i>
+          </div>
+          <h4 class="mt-2 text-sm font-medium text-gray-900">Glass</h4>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 text-yellow-600">
+            <i data-feather="hard-drive"></i>
+          </div>
+          <h4 class="mt-2 text-sm font-medium text-gray-900">Metal</h4>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 text-indigo-600">
+            <i data-feather="file-text"></i>
+          </div>
+          <h4 class="mt-2 text-sm font-medium text-gray-900">Paper</h4>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-600">
+            <i data-feather="package"></i>
+          </div>
+          <h4 class="mt-2 text-sm font-medium text-gray-900">Plastic</h4>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 text-gray-600">
+            <i data-feather="trash-2"></i>
+          </div>
+          <h4 class="mt-2 text-sm font-medium text-gray-900">Trash</h4>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100 text-emerald-600">
+            <i data-feather="leaf"></i>
+          </div>
+          <h4 class="mt-2 text-sm font-medium text-gray-900">Organic</h4>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-white border-t border-gray-200 mt-12">
+    <div class="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <p class="text-center text-sm text-gray-500">
+        &copy; 2023 EcoVision. Helping you make sustainable choices.
+      </p>
+    </div>
+  </footer>
 
     <script>
-      // DOM Elements
+    document.addEventListener('DOMContentLoaded', () => {
       const cameraSection = document.getElementById('cameraSection');
+      const uploadFormEl = document.getElementById('uploadForm');
+      const fileInput = document.getElementById('file-upload');
+      const toggleCameraBtn = document.getElementById('toggleCamera');
+      const toggleCameraText = toggleCameraBtn ? toggleCameraBtn.querySelector('span') : null;
+      const captureBtn = document.getElementById('captureBtn');
+      const stopCameraBtn = document.getElementById('stopCamera');
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
-      const captureBtn = document.getElementById('captureBtn');
-      const stopCamera = document.getElementById('stopCamera');
-      const toggleCamera = document.getElementById('toggleCamera');
-      const uploadForm = document.getElementById('uploadForm');
       const liveResult = document.getElementById('liveResult');
       const liveLabel = document.getElementById('liveLabel');
       const liveConfidence = document.getElementById('liveConfidence');
       const liveError = document.getElementById('liveError');
+      const liveErrorText = liveError ? liveError.querySelector('p') : null;
       const uploadResult = document.getElementById('uploadResult');
+      const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+      const submitBtn = uploadFormEl ? uploadFormEl.querySelector('button[type="submit"]') : null;
+      const dropZone = uploadFormEl ? uploadFormEl.querySelector('.border-dashed') : null;
 
       let stream = null;
       let classificationTimer = null;
       let isClassifying = false;
 
-      // Toggle between camera and file upload
-      toggleCamera.addEventListener('click', function() {
-        if (cameraSection.style.display === 'none') {
-          cameraSection.style.display = 'block';
-          uploadForm.style.display = 'none';
-          toggleCamera.textContent = 'Use File Upload Instead';
-          startCamera();
-        } else {
-          cameraSection.style.display = 'none';
-          uploadForm.style.display = 'block';
-          toggleCamera.textContent = 'Use Camera Instead';
-          stopCameraStream();
+      function replaceIcons() {
+        if (window.feather) {
+          window.feather.replace();
         }
-      });
+      }
 
-      function updateLiveResult(prediction, confidence) {
-        if (!prediction) {
-          liveResult.style.display = 'none';
+      replaceIcons();
+
+      function setButtonLoading(isLoading) {
+        if (!submitBtn) {
           return;
         }
-        liveError.style.display = 'none';
-        liveResult.style.display = 'block';
-        liveLabel.textContent = prediction;
-        liveConfidence.textContent =
-          typeof confidence === 'number'
-            ? `${(confidence * 100).toFixed(1)}%`
-            : '--';
-      }
-
-      function showLiveError(message) {
-        liveResult.style.display = 'none';
-        liveError.style.display = 'block';
-        liveError.textContent = message;
-      }
-
-      function clearLiveDisplays() {
-        liveResult.style.display = 'none';
-        liveError.style.display = 'none';
-        liveLabel.textContent = '--';
-        liveConfidence.textContent = '--';
+        if (isLoading) {
+          submitBtn.disabled = true;
+          submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+          submitBtn.innerHTML = '<i data-feather="loader" class="w-5 h-5 mr-2 animate-spin"></i>Classifying...';
+        } else {
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+          submitBtn.innerHTML = '<i data-feather="search" class="w-5 h-5 mr-2"></i>Classify Uploaded Image';
+        }
+        replaceIcons();
       }
 
       function updateUploadResult(prediction, confidence, errorMessage) {
-        if (!uploadResult) return;
-
+        if (!uploadResult) {
+          return;
+        }
         if (errorMessage) {
-          uploadResult.innerHTML = `<div class="result"><p>${errorMessage}</p></div>`;
+          uploadResult.innerHTML = `
+            <div class="bg-white shadow rounded-lg overflow-hidden">
+              <div class="px-6 py-5 border-b border-red-100 bg-red-50">
+                <h3 class="text-lg font-medium text-red-800 flex items-center">
+                  <i data-feather="alert-triangle" class="w-5 h-5 mr-2"></i>
+                  Classification Error
+                </h3>
+              </div>
+              <div class="px-6 py-4">
+                <p class="text-sm text-red-700">${errorMessage}</p>
+              </div>
+            </div>
+          `;
+          replaceIcons();
           return;
         }
 
@@ -195,44 +308,88 @@
 
         const confidenceHtml =
           typeof confidence === 'number'
-            ? `<p><strong>Confidence:</strong> ${(confidence * 100).toFixed(1)}%</p>`
+            ? `<div class="mt-1"><p class="text-sm text-gray-500">Confidence: <span class="font-medium">${(confidence * 100).toFixed(1)}%</span></p></div>`
             : '';
 
         uploadResult.innerHTML = `
-          <div class="result">
-            <p><strong>Prediction:</strong> ${prediction}</p>
-            ${confidenceHtml}
+          <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-200">
+              <h3 class="text-lg font-medium leading-6 text-gray-900">Classification Result</h3>
+            </div>
+            <div class="px-6 py-5 space-y-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 bg-primary-100 rounded-full p-3">
+                  <i data-feather="check-circle" class="w-6 h-6 text-primary-600"></i>
+                </div>
+                <div class="ml-4">
+                  <h4 class="text-lg font-medium text-gray-900">${prediction}</h4>
+                  ${confidenceHtml}
+                </div>
+              </div>
+              <div class="border-t pt-4">
+                <div class="flex items-start">
+                  <div class="flex-shrink-0 bg-secondary-100 rounded-full p-3">
+                    <i data-feather="trash-2" class="w-6 h-6 text-secondary-600"></i>
+                  </div>
+                  <div class="ml-4">
+                    <h4 class="text-md font-medium text-gray-900">Suggested Disposal</h4>
+                    <p class="mt-1 text-sm text-gray-600">
+                      Place this item in the <span class="font-semibold text-secondary-600">${prediction}</span> bin for proper recycling or disposal.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         `;
+        replaceIcons();
       }
 
-      // Start camera
-      async function startCamera() {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
-          });
-          video.srcObject = stream;
-          startLiveClassification();
-        } catch (err) {
-          console.error('Error accessing camera:', err);
-          alert('Unable to access camera. Please check permissions and try again.');
-          cameraSection.style.display = 'none';
-          uploadForm.style.display = 'block';
-          toggleCamera.textContent = 'Use Camera Instead';
-          stopLiveClassification();
+      function updateLiveResult(prediction, confidence) {
+        if (!liveResult) {
+          return;
+        }
+        if (!prediction) {
+          liveResult.classList.add('hidden');
+          return;
+        }
+        if (liveError) {
+          liveError.classList.add('hidden');
+        }
+        liveResult.classList.remove('hidden');
+        if (liveLabel) {
+          liveLabel.textContent = prediction;
+        }
+        if (liveConfidence) {
+          liveConfidence.textContent =
+            typeof confidence === 'number' ? `${(confidence * 100).toFixed(1)}%` : '--';
         }
       }
 
-      function startLiveClassification() {
-        if (classificationTimer) return;
-        classificationTimer = setInterval(() => {
-          classifyFrame(false);
-        }, 1500);
+      function showLiveError(message) {
+        if (!liveError) {
+          return;
+        }
+        liveResult.classList.add('hidden');
+        liveError.classList.remove('hidden');
+        if (liveErrorText) {
+          liveErrorText.textContent = message;
+        }
+      }
+
+      function clearLiveDisplays() {
+        if (liveResult) {
+          liveResult.classList.add('hidden');
+        }
+        if (liveError) {
+          liveError.classList.add('hidden');
+        }
+        if (liveLabel) {
+          liveLabel.textContent = '--';
+        }
+        if (liveConfidence) {
+          liveConfidence.textContent = '--';
+        }
       }
 
       function stopLiveClassification() {
@@ -241,90 +398,247 @@
           classificationTimer = null;
         }
         isClassifying = false;
+      }
+
+      function stopCameraStream() {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+        }
+        if (cameraPlaceholder) {
+          cameraPlaceholder.classList.remove('hidden');
+        }
+        stopLiveClassification();
         clearLiveDisplays();
       }
 
-      // Stop camera
-      function stopCameraStream() {
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-          stream = null;
+      function showCameraSection() {
+        if (!cameraSection || !uploadFormEl) {
+          return;
         }
-        stopLiveClassification();
+        cameraSection.classList.remove('hidden');
+        uploadFormEl.classList.add('hidden');
+        if (toggleCameraText) {
+          toggleCameraText.textContent = 'Use File Upload Instead';
+        }
+        startCamera();
+      }
+
+      function showUploadSection() {
+        if (!cameraSection || !uploadFormEl) {
+          return;
+        }
+        cameraSection.classList.add('hidden');
+        uploadFormEl.classList.remove('hidden');
+        if (toggleCameraText) {
+          toggleCameraText.textContent = 'Use Camera Instead';
+        }
+          stopCameraStream();
+      }
+
+      function startLiveClassification() {
+        if (classificationTimer || !video) {
+          return;
+        }
+        classificationTimer = setInterval(() => {
+          classifyFrame(false);
+        }, 1500);
+      }
+
+      async function startCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          alert('Camera API not supported on this device.');
+          showUploadSection();
+          return;
+        }
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+          });
+          if (video) {
+          video.srcObject = stream;
+          }
+          if (cameraPlaceholder) {
+            cameraPlaceholder.classList.add('hidden');
+          }
+          startLiveClassification();
+        } catch (error) {
+          console.error('Error accessing camera:', error);
+          alert('Unable to access camera. Please check permissions and try again.');
+          showUploadSection();
+        }
+      }
+
+      function sendClassification(formData, { onSuccess, onError, onComplete } = {}) {
+        return fetch('/classify', {
+          method: 'POST',
+          body: formData,
+        })
+          .then(async (response) => {
+            let data;
+            try {
+              data = await response.json();
+            } catch (parseError) {
+              if (onError) {
+                onError('Received an invalid response from the server.');
+              }
+              return null;
+            }
+            if (!response.ok || data.error) {
+              if (onError) {
+                onError(data.error || 'Unable to classify image.');
+              }
+              return data;
+            }
+            if (onSuccess) {
+              onSuccess(data);
+            }
+            return data;
+          })
+          .catch((error) => {
+            if (onError) {
+              onError(error?.message || 'Error contacting the server.');
+            }
+            return null;
+          })
+          .finally(() => {
+            if (onComplete) {
+              onComplete();
+            }
+          });
       }
 
       function classifyFrame(updateUploadCard) {
-        if (!stream || isClassifying) return;
-        if (video.videoWidth === 0 || video.videoHeight === 0) return;
+        if (!stream || !canvas || !video || isClassifying) {
+          return;
+        }
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          return;
+        }
 
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-
+        
         const context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
+        
         isClassifying = true;
         canvas.toBlob(
-          function(blob) {
+          (blob) => {
             if (!blob) {
               isClassifying = false;
               return;
             }
-
             const formData = new FormData();
             formData.append('image', blob, 'frame.jpg');
 
-            fetch('/classify', {
-              method: 'POST',
-              body: formData
-            })
-              .then(response => response.json())
-              .then(data => {
-                if (data.error) {
-                  showLiveError(data.error);
-                  if (updateUploadCard) {
-                    updateUploadResult(null, null, data.error);
-                  }
-                } else {
-                  updateLiveResult(data.prediction, data.confidence);
-                  if (updateUploadCard) {
-                    updateUploadResult(data.prediction, data.confidence);
-                  }
+            sendClassification(formData, {
+              onSuccess: (data) => {
+                updateLiveResult(data.prediction, data.confidence);
+                if (updateUploadCard) {
+                  updateUploadResult(data.prediction, data.confidence);
                 }
-              })
-              .catch(error => {
-                const message = error.message || 'Error classifying frame.';
+              },
+              onError: (message) => {
                 showLiveError(message);
                 if (updateUploadCard) {
                   updateUploadResult(null, null, message);
                 }
-              })
-              .finally(() => {
+              },
+              onComplete: () => {
                 isClassifying = false;
-              });
+              },
+            });
           },
           'image/jpeg',
           0.8
         );
       }
 
-      // Capture image and submit for classification
-      captureBtn.addEventListener('click', function() {
-        if (!stream) return;
-        classifyFrame(true);
-      });
+      if (toggleCameraBtn) {
+        toggleCameraBtn.addEventListener('click', () => {
+          if (cameraSection && cameraSection.classList.contains('hidden')) {
+            showCameraSection();
+          } else {
+            showUploadSection();
+          }
+        });
+      }
 
-      // Stop camera button
-      stopCamera.addEventListener('click', function() {
-        stopCameraStream();
-        cameraSection.style.display = 'none';
-        uploadForm.style.display = 'block';
-        toggleCamera.textContent = 'Use Camera Instead';
-      });
+      if (captureBtn) {
+        captureBtn.addEventListener('click', () => classifyFrame(true));
+      }
 
-      // Clean up when leaving page
-      window.addEventListener('beforeunload', function() {
-        stopCameraStream();
+      if (stopCameraBtn) {
+        stopCameraBtn.addEventListener('click', showUploadSection);
+      }
+
+      if (uploadFormEl) {
+        uploadFormEl.addEventListener('submit', (event) => {
+          event.preventDefault();
+          if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+            updateUploadResult(null, null, 'Please choose an image before submitting.');
+            return;
+          }
+          const file = fileInput.files[0];
+          const formData = new FormData();
+          formData.append('image', file, file.name);
+          setButtonLoading(true);
+          sendClassification(formData, {
+            onSuccess: (data) => {
+              updateUploadResult(data.prediction, data.confidence);
+            },
+            onError: (message) => {
+              updateUploadResult(null, null, message);
+            },
+            onComplete: () => {
+              setButtonLoading(false);
+            },
+          });
+        });
+      }
+
+      if (fileInput) {
+        fileInput.addEventListener('change', () => {
+          updateUploadResult(null, null, null);
+        });
+      }
+
+      if (dropZone) {
+        const highlight = () => dropZone.classList.add('border-secondary-500', 'bg-gray-50');
+        const unhighlight = () => dropZone.classList.remove('border-secondary-500', 'bg-gray-50');
+
+        ['dragenter', 'dragover'].forEach((eventName) => {
+          dropZone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            highlight();
+          });
+        });
+
+        ['dragleave', 'drop'].forEach((eventName) => {
+          dropZone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            unhighlight();
+          });
+        });
+
+        dropZone.addEventListener('drop', (event) => {
+          const files = event.dataTransfer?.files;
+          if (!files || files.length === 0 || !fileInput) {
+            return;
+          }
+          fileInput.files = files;
+          updateUploadResult(null, null, null);
+        });
+      }
+
+      window.addEventListener('beforeunload', stopCameraStream);
       });
     </script>
   </body>
