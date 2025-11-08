@@ -3,9 +3,10 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
+from typing import Any, Dict
 
 import torch
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 from PIL import Image
 from torchvision import models, transforms
 
@@ -40,10 +41,24 @@ preprocess = transforms.Compose(
 )
 
 
-def prepare_image(file_stream) -> torch.Tensor:
-    image = Image.open(file_stream).convert("RGB")
-    tensor = preprocess(image).unsqueeze(0)
+def prepare_image(file_stream: io.BytesIO | bytes) -> torch.Tensor:
+    if isinstance(file_stream, bytes):
+        file_stream = io.BytesIO(file_stream)
+    with Image.open(file_stream) as image:
+        image = image.convert("RGB")
+        tensor = preprocess(image).unsqueeze(0)
     return tensor
+
+
+def classify_image_bytes(image_bytes: bytes) -> Dict[str, Any]:
+    image_data = prepare_image(image_bytes)
+    with torch.no_grad():
+        outputs = model(image_data)
+        probabilities = torch.softmax(outputs, dim=1)[0]
+    top_idx = int(torch.argmax(probabilities).item())
+    prediction = CLASS_NAMES[top_idx]
+    confidence = float(probabilities[top_idx].item())
+    return {"prediction": prediction, "confidence": confidence}
 
 
 app = Flask(__name__)
@@ -58,18 +73,31 @@ def index():
         file = request.files["image"]
         if file.filename:
             try:
-                image_data = prepare_image(io.BytesIO(file.read()))
-                with torch.no_grad():
-                    outputs = model(image_data)
-                    probabilities = torch.softmax(outputs, dim=1)[0]
-                top_idx = int(torch.argmax(probabilities).item())
-                prediction = CLASS_NAMES[top_idx]
-                confidence = float(probabilities[top_idx].item())
+                result = classify_image_bytes(file.read())
+                prediction = result["prediction"]
+                confidence = result["confidence"]
             except Exception as exc:  # pylint: disable=broad-except
                 prediction = f"Error: {exc}"
                 confidence = None
 
     return render_template("index.html", prediction=prediction, confidence=confidence)
+
+
+@app.route("/classify", methods=["POST"])
+def classify():
+    if "image" not in request.files:
+        return jsonify({"error": "Missing image file."}), 400
+
+    file = request.files["image"]
+    if not file.filename:
+        return jsonify({"error": "Empty filename."}), 400
+
+    try:
+        result = classify_image_bytes(file.read())
+    except Exception as exc:  # pylint: disable=broad-except
+        return jsonify({"error": str(exc)}), 500
+
+    return jsonify(result)
 
 
 if __name__ == "__main__":
