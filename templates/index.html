@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Waste Classifier</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem auto;
+        max-width: 480px;
+        text-align: center;
+      }
+
+      form {
+        margin-top: 2rem;
+        border: 1px solid #ddd;
+        padding: 1.5rem;
+        border-radius: 8px;
+      }
+
+      input[type="file"] {
+        width: 100%;
+        margin-bottom: 1rem;
+      }
+
+      button {
+        background-color: #2563eb;
+        color: white;
+        border: none;
+        padding: 0.6rem 1.4rem;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .result {
+        margin-top: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Waste Image Classifier</h1>
+    <p>Select an image of cardboard, glass, metal, paper, plastic, or trash to classify it.</p>
+
+    <form method="post" enctype="multipart/form-data">
+      <input type="file" name="image" accept="image/*" required />
+      <button type="submit">Classify</button>
+    </form>
+
+    {% if prediction %}
+    <div class="result">
+      {% if confidence %}
+      <p><strong>Prediction:</strong> {{ prediction }}</p>
+      <p><strong>Confidence:</strong> {{ "%.1f"|format(confidence * 100) }}%</p>
+      {% else %}
+      <p>{{ prediction }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </body>
+</html>
+
